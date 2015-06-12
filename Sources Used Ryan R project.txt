@@ -1,0 +1,3 @@
+Sources used:
+http://cran.r-project.org/
+http://www.realsimple.com/holidays-entertaining/entertaining/food-drink/alcohol-content-wine

@@ -1,0 +1,735 @@
+White Wine: Analyzing the Variables by Ryan Heerwagen
+========================================================
+
+```{r echo=FALSE, warning=FALSE, message=FALSE, warning=FALSE, packages}
+library(corrplot)
+library(GGally)
+library(ggplot2)
+library(gridExtra)
+library(RColorBrewer)
+library(dplyr)
+library(alr3)
+library(reshape2)
+```
+
+```{r echo=FALSE, warning=FALSE, Load_the_Data}
+setwd('C:/Users/Ryan/Documents/R Data')
+whitwine <- read.csv('wineQualityWhites.csv')
+```
+
+# Univariate Plots Section
+###Overview of the variables:
+
+To start off with, a good overview of the data would be helpful
+
+```{r}
+summary(whitwine)
+```
+
+From this we can tell that there are clearly some values that are skewed and have outliers, like residual sugar.
+
+###Looking at quality distribution
+
+```{r, echo=FALSE, warning=FALSE, warning=FALSE}
+qplot(data=whitwine, x=quality) +
+  ggtitle("Distribution of quality values")
+
+```
+
+This distribution does not quite look normal. Let's try another model.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data = whitwine, x=quality, binwidth = 1) +
+  scale_y_log10() +
+  ggtitle("YLog10 Distribution of quality")
+
+qplot(data = whitwine, x=quality, binwidth = .01) +
+  scale_x_log10() +
+  ggtitle("XLog10 Distribution of quality")
+```
+
+Neither effort really seems to help dispel the concern. It's quite plausible that a large part of the issue is just that the values are discrete and limited in range, as opposed to a more continuous variable.
+
+###Investigating distribution of other variables
+
+To focus a bit more on other variables, to better understand their distributions and qualities.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=fixed.acidity) +
+  ggtitle("Distribution of fixed acidity")
+
+```
+
+The distribution of fixed acidity does look more normal.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=volatile.acidity) +
+  ggtitle("Distribution of volatile acidity")
+
+```
+
+The distribution of volatile acidity appears to have a positive skew.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=volatile.acidity) +
+  ggtitle("Distribution of volatile acidity log 10") +
+  scale_x_log10()
+
+```
+
+Adjusting the scale by log 10 does make the chart look more normal, but the center looks more erratic as the edges start to look more normal.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=citric.acid, binwidth = .01) +
+  ggtitle("Distribution of citric acid")
+
+```
+
+Citric acid appears to have a minor positive skew, but also just some outliers on the right side. There is a strange spike around .5 g / dm^3 for citric acid.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=residual.sugar) +
+  ggtitle("Distribution of residual sugar")
+```
+
+Residual sugar just does not have a normal distribution, and much of the distribution is stuck on the 0 bound. There are significant outliers on the upper bound.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=residual.sugar, binwidth = 1) +
+  ggtitle("Distribution of residual sugar smaller binwidth")
+
+```
+
+As can be seen from having smaller binwidths, the actual value with the highest count is slightly above zero.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=chlorides, binwidth = .005) +
+  ggtitle("Distribution of chlorides")
+```
+
+Using a small binwidth, it seems like the chlorides have a normal distribution with a long tail on the right side of the chart. There are a lot of outliers.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=free.sulfur.dioxide, binwidth = 5) +
+  ggtitle("Distribution of free sulfur dioxide")
+```
+
+The distribution has a clear positive skew, although a very minor one. There are clearly some outliers given how the plot is centered, and it looks more like a normal graph with a few positive values.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=total.sulfur.dioxide, binwidth = 5) +
+  ggtitle("Distribution of total sulfur dioxide")
+```
+
+The distribution looks like it has normal tendencies, but the distribution near the peak is somewhat erratic. I am not seeing an additional pattern.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=density, binwidth = .0005) +
+  ggtitle("Distribution of density")
+```
+
+This distribution appears non-normal, mostly clustered around the center with some clear outliers.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=pH, binwidth = .02) +
+  ggtitle("Distribution of pH")
+```
+
+The distribution of pH looks broadly normal. It has some positive skew as the graph isn't centered around the median, and it's relatively choppy at places.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=alcohol) +
+  ggtitle("Distribution of alcohol")
+```
+
+This distribution is clearly non-normal. There is a high point around 9.5% alcohol, and it slowly fades down as the percent increases.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=alcohol) +
+  ggtitle("Distribution of alcohol log 10") +
+  scale_x_log10()
+
+qplot(data=whitwine, x=alcohol) +
+  ggtitle("Distribution of alcohol square root") +
+  scale_x_sqrt()
+```
+
+Other efforts do not seem to clear this up either, and having a distribution that follows a simple pattern may not occur for all data.
+
+By knowing the distribution, I can better understand the likely outliers and 
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+There are 4898 observations of 12 variables(fixed.acidity, volatile.acidity, citric.acid, residual.sugar, chlorides, free.sulfur.dioxide, total.sulfur.dioxide, density, pH, sulphates, alcohol, and quality) for a set of white wines.
+
+The median and mean quality are similar and set close to 6. The data is not normalized relative to quality. The minimum alcohol content is 8%, the mean and median around around 10.4-10.5%, and the max is 14.2% Given a bit of background research: http://www.realsimple.com/holidays-entertaining/entertaining/food-drink/alcohol-content-wine this suggests that the sample of wine we have may have unusually low alcohol content.
+
+### What is/are the main feature(s) of interest in your dataset?
+The main feature of interest is quality.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+I think alcohol, density, and bound sulfur dioxide are very important variables. 
+
+### Did you create any new variables from existing variables in the dataset?
+I created a variable tracking the variance from the mean for residual sugar, as well as a measure of bound sulfur dioxide by subtracting free from the total. I also created a few ordered factors for alcohol and quality test relationships within groupings. Finally, I created an M table for the purposes of checking correlations.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+The distribution of residual sugar hit the bottom wall of zero. Also, sulphates, residual sugar, chlorides, free and bound sulfure dioxide, fixed and volatile acidity, and citric acide all have major outliars.
+
+I made adjustments to these to tidy up the graphs by limiting the x axis.
+
+
+
+# Bivariate Plots Section
+Comparison graphs between quality and other variables. The idea is to better understand what the relationship is between quality and this other variable. A correlation and a scatterplot are used to better perceive the relationship, as a scatterplot can detect strange things like non-linear shapes, or interesting sorts of heteroscedasticity that line plots and other charts will not.
+
+###Investigating quality vs other variables
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=pH,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("pH vs quality")
+
+cor.test(whitwine$quality, whitwine$pH,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+What can be determined from both the graph and the correlation test is that there isn't a strong relationship between pH and quality. The correlation test does let us know that there is a small correlation between the two variables.
+
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("alcohol vs quality")
+
+cor.test(whitwine$quality, whitwine$alcohol,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+While it might not be perfectly clear from the graph, it is clear from the correlation test that there is a correlation between the two variables. It is a low correlation, so it isn't the easiest to visually detect.
+
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=density,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  xlim(.98,1.01) +
+  ggtitle("density vs quality")
+
+cor.test(whitwine$quality, whitwine$density,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Also, while it might not be perfectly clear from the graph, there is a correlation between the two variables. The correlation is relatively low at around -.3.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=sulphates,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("sulphates vs quality")
+
+cor.test(whitwine$quality, whitwine$sulphates,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+The correlation between sulphates and quality is incredibly low. The graph looks like it is 0, and even running a test while clearly indicating a correlation that is not 0, is not showing one with much predictive power.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=residual.sugar,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  xlim(0,30) +
+  ggtitle("residual sugar vs quality")
+
+cor.test(whitwine$quality, whitwine$residual.sugar,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+These two variables have a very small correlation of around -.1 if one rounds to the nearest hundredth. This is hard to visually notice, and it isn't very predictively useful, but it may be interesting to research later.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=fixed.acidity,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  xlim(4,11) +
+  ggtitle("fixed acidity vs quality")
+
+cor.test(whitwine$quality, whitwine$fixed.acidity,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+These two variables have a very small correlation of around -.11 if one rounds to the nearest hundredth. This is also hard to visually notice, and it isn't very predictively useful, but it also might be interesting to research later.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=volatile.acidity,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) + 
+  xlim(0,.8) +
+  ggtitle("volatile acidity vs quality")
+
+cor.test(whitwine$quality, whitwine$volatile.acidity,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Volatile acidity has a much stronger relationship than the last two variables. It isn't as strong as what was found for density or alcohol, but it could be of value. It still is not likely easy to see.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=citric.acid,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  xlim(0,1) +
+  ggtitle("citric acid vs quality")
+
+cor.test(whitwine$quality, whitwine$citric.acid,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Citric acid has no linear relationship worth mentioning. We can't even reject the null-hypothesis of zero correlation at the 95 percent confidence interval, and that's even given an interval that is less than .05 + or -. Maybe there's a complicated relationship that isn't quite linear, but it's also possible that citric acid has no effect for most wines. 
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=chlorides,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  xlim(0,.1) +
+  ggtitle("chlorides vs quality")
+
+cor.test(whitwine$quality, whitwine$chloride,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+The correlation between chloride and quality is relatively high. It isn't one of the highest, but at -.21 it's potentially worth investigating. It's still a relationship that is hard to tell from any graph as it's significantly less than .5
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=free.sulfur.dioxide,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  xlim(0,120) +
+  ggtitle("free sulfur dioxide vs quality")
+
+cor.test(whitwine$quality, whitwine$free.sulfur.dioxide,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Free sulphur dioxide and quality is another example of two variables that may in practice have no relationship. The 95 percent confidence interval does not allow us to reject the idea that there is no relationship between the variables.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=total.sulfur.dioxide,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) + 
+  xlim(0,300) +
+  ggtitle("total sulfur dioxide vs quality")
+
+cor.test(whitwine$quality, whitwine$total.sulfur.dioxide,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Interestingly, while free sulfur dioxide may have no relationship with quality, total sulfur dioxide does. Given that total sulfur dioxide is comprised of free sulfur dioxide and bound sulfur dioxide, this may suggest that the latter is the real variable for variances in wine quality.
+
+This set of plots suggest to me a possible positive correlation between quality and alcohol content, as well as a negative correlation between quality and density. 
+
+###Investigating alcohol vs other variables
+Because alcohol has the strongest correlation with quality, it may be of value to see how alcohol correlates with other variables.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=sulphates),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("Sulphates vs alcohol")
+
+cor.test(whitwine$alcohol, whitwine$sulphates,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+As can be noted, the correlation between alcohol and sulphates is not distinguishable from 0.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=pH),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("pH vs alcohol")
+
+cor.test(whitwine$alcohol, whitwine$pH,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+While it's a low enough correlation where it'd be hard to tell visually, there is some correlation between pH and alcohol.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=density),data=whitwine) + 
+  geom_jitter(alpha=.1) + 
+  ylim(.98,1.01) +
+  ggtitle("density vs alcohol")
+
+cor.test(whitwine$alcohol, whitwine$density,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+The correlation between density and alcohol is very strong and very obvious. It's even clear upon looking at the visualization. It's a negative relationship though, which makes the matter of explaining quality more difficult. Also, while this may be due to my lack of knowledge on wine, but I feel like it is a bit strange that there is so much of a relationship, while I recognize that alcohol isn't dense, I would think there would be more of the variance explained by other variables.
+
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=residual.sugar),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ylim(0,30) +
+  ggtitle("residual sugar vs alcohol")
+
+cor.test(whitwine$alcohol, whitwine$residual.sugar,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+The relationship between residual sugar and alcohol is also relatively strong. It still is at a level where it may be difficult for some to pick up on it from the plot itself, however, it is there. The strange aspect of this is that while alcohol correlates with residual sugar, quality does not. This is still entirely possible, but I might want to explore sugar more.
+
+###Investigating assorted other variables
+Moving past alcohol, there are other variables that may be worth investigating.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=chlorides,y=sulphates),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  xlim(0,.14) +
+  ggtitle("chlorides vs sulphates")
+
+cor.test(whitwine$sulphates, whitwine$chlorides,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+I cannot find a relationship between chlorides and sulphates.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=pH,y=sulphates),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("pH vs sulphates")
+
+
+cor.test(whitwine$pH, whitwine$sulphates,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+From the data, there is a minor positive correlation between sulphates and pH, but it is still not one that could be easily detected from looking at a chart.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=pH,y=chlorides),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ylim(0,.2) +
+  ggtitle("pH vs chlorides")
+
+
+cor.test(whitwine$chlorides, whitwine$pH,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+  
+From the graph, there isn't much to tell, however from the correlation test there may be a very minor correlation. I can't see any patterns apparent from the plot itself.
+  
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=pH,y=residual.sugar),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ylim(0,25) +
+  ggtitle("pH vs residual.sugar")
+
+
+cor.test(whitwine$residual.sugar, whitwine$pH,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+  
+There is some correlation between residual sugar and pH, although it is best perceived in the reduction of very high values of residual sugar as pH rises. It still isn't large.
+  
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=pH,y=density),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ylim(.98,1.01) +
+  ggtitle("pH vs density")
+
+
+cor.test(whitwine$density, whitwine$pH,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+There is a small correlation between pH and density. The plot doesn't give much additional information.
+
+As notable from earlier plots, alcohol and density negatively correlate to a very high degree. This can confuse the earlier result showing a negative correlation between quality and density, because if quality negatively correlates with density, and positively correlates with alcohol, then if alcohol also negatively correlates with density, then the alcohol-density correlation may explain the quality-density correlation.
+
+###Looking into sugar
+Let's take a closer look at sugar. Because sugar was a matter of curiosity earlier, I intend to create a new variable based upon the absolute value of a sugar observation from the mean, in case the real issue involves extreme values of sugar in one way or another.
+
+```{r, echo=FALSE, warning=FALSE}
+whitwine$sugfrommean <- abs(whitwine$residual.sugar - 
+                              mean(whitwine$residual.sugar))
+ggplot(aes(x=residual.sugar,y=sugfrommean),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("Distribution of Sugar as expressed in variance from mean")
+```
+
+This plot is not necessary, but it does help capture the distribution of sugar, and highlights that there are many outliers, and a wider distribution over the mean than under it.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=quality,y=sugfrommean),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("Sugar from mean vs quality")
+
+cor.test(whitwine$quality, whitwine$sugfrommean,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Checking the residual sugar value degree of distance from the mean doesn't find much of a correlation. There's a very small one, which might suggest that people don't like the extremes, but this might not be the most helpful piece of the puzzle due to the size.
+
+Let's just check the distributions of our sugar variables again for comparison.
+
+```{r, echo=FALSE, warning=FALSE}
+qplot(data=whitwine, x=residual.sugar) +
+  ggtitle("Distribution of sugar")
+qplot(data=whitwine, x=sugfrommean) +
+  ggtitle("Distribution of sugar from mean")
+qplot(data=whitwine, x=sugfrommean, binwidth = .05) +
+  ggtitle("Distribution of sugar from mean log10 x axis") +
+  scale_x_log10()
+```
+
+Sugar suffers from a limit to how much residual which can remain, which skews the distribution. There's a glut of near zero amounts. I do not think sugar was as fruitful as some of the other information has been.
+
+###Looking into bound sulfur dioxide
+Now to follow up on an earlier curiosity, let's isolate out bound sulfur dioxide and making the comparisons. Given that in our data set bound sulfur dioxide is just the total sulfur dioxide - free sulfure dioxide, this should be easy to generate.
+
+```{r, echo=FALSE, warning=FALSE}
+whitwine$bound.sulfur.dioxide <- (whitwine$total.sulfur.dioxide - 
+                                    whitwine$free.sulfur.dioxide)
+ggplot(aes(x=bound.sulfur.dioxide,y=quality),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("Bound sulfur dioxide vs quality")
+
+cor.test(whitwine$quality, whitwine$bound.sulfur.dioxide,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Bound sulfur dioxide has a noted negative relationship between it and quality. It is still a low enough correlation where it can be hard to tell from a plot, but the estimated correlation appears larger than the one detected for total sulfur dioxide.
+
+Now, because both variables impact quality, let's investigate alcohol vs bound sulfur dioxide.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=alcohol,y=bound.sulfur.dioxide),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("Bound sulfur dioxide vs alcohol")
+
+cor.test(whitwine$alcohol, whitwine$bound.sulfur.dioxide,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Bound sulfur dioxide and alcohol also have a very negative relationship, making one wonder how much of the relationship between quality and sulfur dioxide is explained by alcohol/vice versa. It can actually be detected from a plot.
+
+###Fixed and volatile acidity comparison
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=fixed.acidity,y=volatile.acidity),data=whitwine) + 
+  geom_jitter(alpha=.1) +
+  ggtitle("Fixed acidity vs volatile acidity")
+
+cor.test(whitwine$fixed.acidity, whitwine$volatile.acidity,
+         alternative = c("two.sided"),
+         method = c("pearson"))
+```
+
+Fixed and volatile acidity do not seem to have any relationship.
+
+###Correlation Plot
+Also, just to see if anything hasn't been found, here's an overview of the entire set of correlations:
+
+```{r, echo=FALSE, warning=FALSE}
+M <- cor(whitwine[2:15])
+corrplot(M, method = "number", type = "upper")
+```
+
+The correlation plot displays a lot of potentially fruitful relationships between variables.
+
+###Alcohol vs quality boxplot
+Additionally, given that we know alcohol is one of the stronger relationships in existence vs quality, let's create a boxplot to give a better picture of the variation of the amount of alcohol for each quality rating.
+
+```{r, echo=FALSE, warning=FALSE}
+ggplot(aes(x=as.factor(quality),y=alcohol),data=whitwine) + 
+  geom_boxplot() +
+  ggtitle("Boxplot of alcohol by quality") +
+  xlab("quality")
+```
+
+Interestingly, it looks like average alcohol dips until it reaches the rating factor of 5, and then it starts to increase as quality increases.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+I noticed that alcohol, bound sulfur dioxide, and density all varied with quality. 
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+I noticed that alcohol, bound sulfur dioxide, and density all tended to have relations among each other that could make the causal relations complicated to separate out. Also, the relationship between residual.sugar and density is rather substantial, being an even stronger relation.
+
+Additionally, the relationship between alcohol and quality seems to not really be linear given a boxplot on the data.
+
+### What was the strongest relationship you found?
+The strongest relationship is the positive correlation between density and residual sugar.
+
+
+
+# Multivariate Plots Section
+
+Testing the relationships between a few categorizations and quality. As a general rule, I will round variables to smooth out the data I am working with.
+
+###Classifications by alcohol content
+One categorization I will make is an alcohol.bucket variable based upon external knowledge about wine classifications by alcohol content. The source was listed earlier: http://www.realsimple.com/holidays-entertaining/entertaining/food-drink/alcohol-content-wine 
+
+One test I will do given my earlier curiosity on the relationship between residual sugar and quality, is that given the alcohol categories found elsewhere online, I will plot the quality vs residual sugar for the different alcohol classifications.
+
+```{r echo=FALSE, warning=FALSE}
+whitwine$alcohol.bucket <-cut(whitwine$alcohol,
+                            c(0,12.5,13.5,14.5))
+
+
+ggplot(aes(x=.5*round(residual.sugar/.5), y= quality),
+       data = whitwine) +
+  geom_line(aes(color=alcohol.bucket), 
+            stat = 'summary',
+            fun.y = median) + xlim(0,30)+
+  ggtitle("Average quality vs residual sugar by alcohol classification") +
+  xlab("residual sugar")
+```
+
+I'm hesitant to draw conclusions from this graph. The relationship of residual sugar and quality past 15 may be of interest, but given the data this could just be noise.
+
+Because this alcohol break-down is a new curiosity for me, and one that existing writings led me to expect might be of importance, I will test a few other variables against it.
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x=.1* round(pH/.1), y= quality),
+       data = whitwine) +
+  geom_line(aes(color=alcohol.bucket), 
+            stat = 'summary',
+            fun.y = median) +
+  ggtitle("Average quality vs pH by alcohol classification") +
+  xlab("pH")
+```
+
+This data still does not lead me to any conclusions I find particularly interesting.
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x=residual.sugar, y= density),
+       data = whitwine) +
+  geom_line(aes(color=alcohol.bucket), 
+            stat = 'summary',
+            fun.y = median) + xlim(0,30) +
+  ggtitle("Average bound sulfur dioxide vs density by alcohol category")
+```
+
+Lastly for these tests testing out the relationship between residual sugar and density by alcohol level is interesting, but does mostly reveals that there is no difference in the relationship by alcohol level. While the graph is jagged, most of the lines are parallel.
+
+
+###Classifications by quality
+I will now also start using quality as a factor, so that way I can see if there are any complicated relationships involving it.
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x=.5*round(alcohol/.5), y= density),
+       data = whitwine) +
+  geom_line(aes(color=as.factor(quality)), 
+            stat = 'summary',
+            fun.y = median) + ylim(.98,1.01) +
+  ggtitle("Average density vs alcohol by quality") +
+  xlab("alcohol")
+```
+
+Looking at density, I don't think variations in quality impact the relationship it has with alcohol. The most promising sign it might is the last data-point for quality 4 wines with alcohol levels around 13.5, however, I think that's a result of low samples.
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x=1*round(alcohol/1), y= bound.sulfur.dioxide),
+       data = whitwine) +
+  geom_line(aes(color=as.factor(quality)), 
+            stat = 'summary',
+            fun.y = median) +
+  ggtitle("Average bound sulfur dioxide vs alcohol by quality") +
+  xlab("alcohol")
+```
+
+Looking at bound sulfur dioxide against alcohol by quality shows that there is a real divergence in the average bound sulfur dioxide by alcohol for each quality of wine. Lower quality wines show a higher decrease in bound sulfur dioxide as alcohol goes up, while higher quality wines seem not to, and level out much more. 
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(aes(x=.001*round(density/.001), y= bound.sulfur.dioxide),
+       data = whitwine) +
+  geom_line(aes(color=as.factor(quality)), 
+            stat = 'summary',
+            fun.y = median) + xlim(.98,1.01) +
+  ggtitle("Average bound sulfur dioxide vs density by quality") +
+  xlab("density")
+```
+
+Moving on to test density vs bound sulfur dioxide, my impression is that the data is too noisy to pick out a useful trend. Not all qualities persist across all of the densities.
+
+
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+As can be noted, the density does not seem to explain any of the variance of quality that alcohol does not already explain, as the two variables move hand-in-hand when explaining quality. The same seems likely true for bound sulfur dioxide and density.
+
+Additionally, bound sulfur dioxide does, although in a more complicated manner, as while at the point of low levels of alcohol and high levels of sulfur dioxide the plots are relatively similar, higher quality wines tend to combine more bound sulfur dioxide with alcohol than low quality wines.
+
+### Were there any interesting or surprising interactions between features?
+I was relatively surprised at the relationship between alcohol, quality, and bound sulfur dioxide, where at lower quality levels there is a trade-off, if there is more alcohol there will be less bound sulfur dioxide, and this trade-off is reduced at higher levels of quality, as that relationship weakens at quality levels of 6 and up.
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, warning=FALSE, Plot_One}
+qplot(data=whitwine, x=as.factor(quality)) +
+  xlab("quality") +
+  ggtitle("Distribution of Quality")
+```
+
+### Description One
+The distribution of wine qualities is unimodal. There is some degree of skew, however, the data is relatively normal. Taking a summary of the data shows that the median is relatively close to the mean, however, the distribution still does not seem quite normal. Some of this issue may simply be due to the smaller set of discrete possibilities for factor
+
+### Plot Two
+```{r echo=FALSE, warning=FALSE, Plot_Two}
+ggplot(aes(x=as.factor(quality),y=alcohol),data=whitwine) + 
+  geom_boxplot() +
+  ggtitle("Boxplot of alcohol by quality") +
+  xlab("quality")
+```
+
+### Description Two
+This chart is a boxplot. As noted before, it looks like average alcohol dips until it reaches the rating factor of 5, and then it starts to increase as quality increases. This suggests that the distribution of alcohol vs quality might have more of a U-shape than would originally be guessed by running the correlation.
+
+### Plot Three
+```{r echo=FALSE, warning=FALSE, Plot_Three}
+mysample <- whitwine[sample(1:nrow(whitwine), 1000,
+    replace=FALSE),]
+
+ggplot(aes(x=.1*round(alcohol/.1), y= bound.sulfur.dioxide),
+       data = mysample) +
+  geom_jitter(aes(color=as.factor(quality)),size=3) +
+  ggtitle("Quality Dependence on Alcohol and Bound Sulfur Dioxide") +
+  xlab("alcohol") +
+  scale_color_brewer(type="seq", palette=3) + 
+  theme_bw()
+```
+
+### Description Three
+This plot shows what happens with the trade-off between alcohol and bound sulfur dioxide as quality increases. As can be noted there appears to be a negative correlation between quality and bound sulfur dioxide, but also has quality increases, the degree to which changes in sulfur dioxide matter appears to decline, as high alcohol, low quality drinks show larger shifts in bound sulfur dioxide than high quality drinks. This plot also shows the broad clusterings of quality in alcohol.
+
+------
+
+# Reflection
+
+This dataset has 4898 observations of 12 variables from a 2009 study on white wines. When I first approached the data, I went for bulk scatterplots of variables against quality, to hopefully visually identify any stronger relationships. From each set of analyses I started checking related variables or ones I thought were especially interesting to see if I could learn more about what was going on there.
+
+The big source of difficulty for me with dealing with this dataset is that most of the relationships between quality and other variables are somewhat low, as alcohol, the strongest correlating variable, only has a correlation of .44, and given that R^2 is the square of the correlation, this means that the strongest relationship only explains bit less than .2 of the variation. Testing on alcohol and other variables related to alcohol and quality did bear a lot of fruit though, and the relationship between bound sulfur dioxide and alcohol was very interesting.
+
+I think that there's a lot that I haven't covered, the correlation plot shows a lot of relationships I didn't explore in very much depth. I think this would be more interesting data though, if it had details like white wine type, year, price, location, as well as more high alcohol varieties of wine. My research shows that the very high alcohol category does not exist, and that even the high alcohol category has very low representation.
